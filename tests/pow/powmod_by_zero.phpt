@@ -1,14 +1,8 @@
 --TEST--
 powmod() - modulus by zero for PHP-8.3
---SKIPIF--
-<?php
-if (PHP_MAJOR_VERSION !== 8 || PHP_MINOR_VERSION !== 3) {
-    die('skip only PHP-8.3');
-}
-?>
 --FILE--
 <?php
-require_once __DIR__ . '/../../include.inc';
+require_once __DIR__ . '/../include.inc';
 
 use BcMath\Number;
 

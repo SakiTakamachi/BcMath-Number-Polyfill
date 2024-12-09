@@ -52,18 +52,13 @@ final readonly class Number implements Stringable
     private function getRealValue(): string
     {
         $metaData = $this->getMetaData();
-        return $metaData['value'];
+        return $metaData[0];
     }
 
     private function getRealScale(): int
     {
         $metaData = $this->getMetaData();
-        return $metaData['scale'];
-    }
-
-    private function isNegative(): bool
-    {
-        return substr($this->getRealValue(), 0, 1) === '-';
+        return $metaData[1];
     }
 
     private function quickThreeWayComparisonWithZero(): int
@@ -184,8 +179,8 @@ final readonly class Number implements Stringable
         $num = $num instanceof Number ? $num : new Number($num);
         $scale = $scale ?? max($this->scale, $num->scale);
         $result = $isAdd
-            ? bcadd($this->getRealValue(), $num->value, $scale)
-            : bcsub($this->getRealValue(), $num->value, $scale);
+            ? bcadd($this->getRealValue(), $num->getRealValue(), $scale)
+            : bcsub($this->getRealValue(), $num->getRealValue(), $scale);
         return new Number($result);
     }
 
@@ -199,7 +194,7 @@ final readonly class Number implements Stringable
             }
         }
         $scale = $scale ?? $this->scale + $num->scale;
-        $result = bcmul($this->getRealValue(), $num->value, $scale);
+        $result = bcmul($this->getRealValue(), $num->getRealValue(), $scale);
         return new Number($result);
     }
 
@@ -230,7 +225,7 @@ final readonly class Number implements Stringable
                 $this->throwError(ErrorType::TooLargeScale);
             }
         }
-        $result = bcdiv($this->getRealValue(), $num->value, $scale);
+        $result = bcdiv($this->getRealValue(), $num->getRealValue(), $scale);
         return new Number(
             $scaleIsNull
                 ? $this->removeUnnecessaryExtendedScale($result)
@@ -242,7 +237,7 @@ final readonly class Number implements Stringable
     {
         $num = $num instanceof Number ? $num : new Number($num);
         $scale = $scale ?? max($this->scale, $num->scale);
-        $result = bcmod($this->getRealValue(), $num->value, $scale);
+        $result = bcmod($this->getRealValue(), $num->getRealValue(), $scale);
         return new Number($result);
     }
 
@@ -252,8 +247,8 @@ final readonly class Number implements Stringable
         $num = $num instanceof Number ? $num : new Number($num);
         $scale = $scale ?? max($this->scale, $num->scale);
         $realValue = $this->getRealValue();
-        $quot = bcdiv($realValue, $num->value, 0);
-        $rem = bcmod($realValue, $num->value, $scale);
+        $quot = bcdiv($realValue, $num->getRealValue(), 0);
+        $rem = bcmod($realValue, $num->getRealValue(), $scale);
         return [
             new Number($quot),
             new Number($rem),
@@ -262,25 +257,28 @@ final readonly class Number implements Stringable
 
     public function powmod(Number|string|int $exponent, Number|string|int $modulus, ?int $scale = null): Number
     {
-        if (ScaleChecker::hasFractionalPart($this->scale, $this->getRealScale())) {
+        [$realValue, $realScale] = $this->getMetaData();
+        if ($realScale > 0) {
             throw new ValueError('Base number cannot have a fractional part');
         }
 
         $exponent = $exponent instanceof Number ? $exponent : new Number($exponent);
-        if (ScaleChecker::hasFractionalPart($exponent->scale, $exponent->getRealScale())) {
+        [$exponentRealValue, $exponentRealScale] = $exponent->getMetaData();
+        if ($exponentRealScale > 0) {
             $this->throwError(ErrorType::PowmodHasFractionParts, __METHOD__, 'exponent', 1);
         }
-        if ($exponent->isNegative()) {
+        if ($exponent->quickThreeWayComparisonWithZero() === -1) {
             $this->throwError(ErrorType::PowmodExponentIsNegative, __METHOD__, 'exponent', 1);
         }
 
         $modulus = $modulus instanceof Number ? $modulus : new Number($modulus);
-        if (ScaleChecker::hasFractionalPart($modulus->scale, $modulus->getRealScale())) {
+        [$modulusRealValue, $modulusRealScale] = $modulus->getMetaData();
+        if ($modulusRealScale > 0) {
             $this->throwError(ErrorType::PowmodHasFractionParts, __METHOD__, 'modulus', 2);
         }
 
         $scale = $scale ?? 0;
-        $result = bcpowmod($this->getRealValue(), $exponent->value, $modulus->value, $scale);
+        $result = bcpowmod($realValue, $exponentRealValue, $modulusRealValue, $scale);
         return new Number($result);
     }
 
@@ -300,7 +298,7 @@ final readonly class Number implements Stringable
                         $this->throwError(ErrorType::TooLargeScale);
                     }
                 }
-                $result = bcpow($this->getRealValue(), $exponent->value, $scale);
+                $result = bcpow($this->getRealValue(), $exponent->getRealValue(), $scale);
                 return new Number(
                     $scaleIdNull
                         ? $this->removeUnnecessaryExtendedScale($result)
@@ -312,13 +310,13 @@ final readonly class Number implements Stringable
                 return new Number('1' . $fraction);
             case 1:
                 if (!isset($scale)) {
-                    $scaleStr = bcmul((string) $this->scale, $exponent->value);
+                    $scaleStr = bcmul((string) $this->scale, $exponent->getRealValue());
                     $scale = (int) $scaleStr;
                     if ((string) $scale !== $scaleStr || ScaleChecker::isOverflow($scale, $this->scale)) {
                         $this->throwError(ErrorType::TooLargeScale);
                     }
                 }
-                return new Number(bcpow($this->getRealValue(), $exponent->value, $scale));
+                return new Number(bcpow($this->getRealValue(), $exponent->getRealValue(), $scale));
         }
     }
 
@@ -337,7 +335,7 @@ final readonly class Number implements Stringable
     public function floor(): Number
     {
         $realValue = $this->getRealValue();
-        if (!$this->isNegative()) {
+        if ($this->quickThreeWayComparisonWithZero() >= 0) {
             [$result] = explode('.', $realValue);
         } else {
             if ($this->getRealScale() > 0) {
@@ -352,7 +350,7 @@ final readonly class Number implements Stringable
     public function ceil(): Number
     {
         $realValue = $this->getRealValue();
-        if (!$this->isNegative()) {
+        if ($this->quickThreeWayComparisonWithZero() >= 0) {
             if ($this->getRealScale() > 0) {
                 $result = bcadd($realValue, '1', 0);
             } else {
@@ -366,10 +364,7 @@ final readonly class Number implements Stringable
 
     public function round(int $precision = 0, RoundingMode $mode = RoundingMode::HalfAwayFromZero): Number
     {
-        [
-            'value' => $realValue,
-            'scale' => $realScale,
-        ] = $this->getMetaData();
+        [$realValue, $realScale] = $this->getMetaData();
         if ($realScale <= $precision) {
             $trailingZeroes = ($realScale === 0 ? '.' : '') . str_repeat('0', $precision - $realScale);
             return new Number($realValue . $trailingZeroes);
@@ -553,8 +548,10 @@ final readonly class Number implements Stringable
     public function compare(Number|string|int $num, ?int $scale = null): int
     {
         $num = $num instanceof Number ? $num : new Number($num);
-        $scale = $scale ?? max($this->scale, $num->scale);
-        return bccomp($this->getRealValue(), $num->value, $scale);
+        [$realValue, $realScale] = $this->getMetaData();
+        [$numRealValue, $numRealScale] = $num->getMetaData();
+        $scale = $scale ?? max($realScale, $numRealScale);
+        return bccomp($realValue, $numRealValue, $scale);
     }
 
     public function __toString(): string

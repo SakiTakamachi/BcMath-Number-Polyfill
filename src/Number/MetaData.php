@@ -39,9 +39,6 @@ class MetaData
             throw new LogicException('Metadata already set');
         }
 
-        self::$metaData[$hash] = [
-            'value' => $value,
-            'scale' => $scale,
-        ];
+        self::$metaData[$hash] = [$value, $scale];
     }
 }

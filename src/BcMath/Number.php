@@ -492,13 +492,13 @@ if (!class_exists(Number::class, false)) {
                     break;
 
                 case RoundingMode::HalfEven:
-                    if (bcmod($tmpRoundedAbsValue, '2') !== '0') {
+                    if ($hasMoreDigits || bcmod($tmpRoundedAbsValue, '2') !== '0') {
                         goto away_from_zero;
                     }
                     break;
 
                 case RoundingMode::HalfOdd:
-                    if (bcmod($tmpRoundedAbsValue, '2') === '0') {
+                    if ($hasMoreDigits || bcmod($tmpRoundedAbsValue, '2') === '0') {
                         goto away_from_zero;
                     }
                     break;
@@ -527,6 +527,10 @@ if (!class_exists(Number::class, false)) {
                 $integerPartLen++;
             } else {
                 $leadingZeroes = strspn($tmpRoundedAbsValue, '0');
+                if ($leadingZeroes === strlen($tmpRoundedAbsValue)) {
+                    // e.g. 0.0005 -> 0.001
+                    $leadingZeroes--;
+                }
                 if ($leadingZeroes > 0) {
                     $roundedAbsValue = str_repeat('0', $leadingZeroes) . $roundedAbsValue;
                 }

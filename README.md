@@ -13,7 +13,7 @@ composer require saki/bcmath-number-polyfill
 ```
 
 This library requires the BCMath extension.
-Also, since this is a polyfill, it does **not support** PHP 8.4 or higher. For PHP 8.2 and 8.3 only.
+This library is compatible with PHP 8.4 and later. However, if `BcMath\Number` is already defined, the class will not be defined by this library.
 
 ## Description
 

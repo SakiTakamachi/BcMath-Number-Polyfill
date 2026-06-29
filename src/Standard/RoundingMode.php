@@ -1,6 +1,6 @@
 <?php
 
-if (!class_exists('RoundingMode', false)) {
+if (!class_exists(RoundingMode::class, false)) {
     enum RoundingMode {
         case HalfAwayFromZero;
         case HalfTowardsZero;

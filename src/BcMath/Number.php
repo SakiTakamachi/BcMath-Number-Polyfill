@@ -3,6 +3,7 @@
 namespace BcMath;
 
 use Exception;
+use LogicException;
 use RoundingMode;
 use Saki\Number\Enum\ErrorType;
 use Saki\Number\Enum\Sign;
@@ -62,6 +63,7 @@ if (!class_exists(Number::class, false)) {
             return $metaData[1];
         }
 
+        /** @return -1|0|1 */
         private function quickThreeWayComparisonWithZero(): int
         {
             $realValue = $this->getRealValue();
@@ -318,6 +320,9 @@ if (!class_exists(Number::class, false)) {
                         }
                     }
                     return new Number(bcpow($this->getRealValue(), $exponent->getRealValue(), $scale));
+                default:
+                    // unreachable
+                    throw new LogicException('Unreachable');
             }
         }
 
